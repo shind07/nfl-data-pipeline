@@ -25,3 +25,12 @@ shell:
 .PHONY: pipeline
 pipeline:
 	@docker run -v $(shell PWD)/data:/opt/nfl/data $(IMAGE_NAME) python3 -m app
+
+.PHONY: notebook
+notebook:
+	docker run \
+		-p 8888:8888 \
+		-v $(PWD)/data:/$(WORKDIR)/data \
+		-v $(PWD)/notebooks:/$(WORKDIR)/notebooks \
+		-v $(PWD)/app:/$(WORKDIR)/app \
+		$(IMAGE_NAME) jupyter notebook --ip=0.0.0.0 --allow-root .
