@@ -32,9 +32,10 @@ RUN apt-get update \
 
 COPY requirements.txt tmp/requirements.txt
 RUN pip3 install -r tmp/requirements.txt
+RUN rm tmp/requirements.txt
 
 WORKDIR /opt/nfl 
-COPY app app
+COPY . .
 
 
 ENTRYPOINT [ ]
