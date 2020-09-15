@@ -16,4 +16,12 @@ run:
 
 .PHONY: shell
 shell:
-	@docker run -it $(IMAGE_NAME) bash
+	@docker run \
+		-it \
+		-v $(shell PWD)/data:/opt/nfl/data \
+		-v $(shell PWD)/app:/opt/nfl/app \
+		$(IMAGE_NAME) bash
+
+.PHONY: pipeline
+pipeline:
+	@docker run -v $(shell PWD)/data:/opt/nfl/data $(IMAGE_NAME) python3 -m app
