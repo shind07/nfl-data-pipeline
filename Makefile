@@ -21,7 +21,7 @@ shell:
 		-it \
 		-v $(shell PWD)/data:/$(WORKDIR)/data \
 		-v $(shell PWD)/app:/$(WORKDIR)/app \
-		-v $(PWD)/notebooks:/$(WORKDIR)/notebooks \
+		-v $(shell PWD)/notebooks:/$(WORKDIR)/notebooks \
 		$(IMAGE_NAME) bash
 
 .PHONY: pipeline
@@ -32,7 +32,7 @@ pipeline:
 notebook:
 	@docker run \
 		-p 8888:8888 \
-		-v $(PWD)/data:/$(WORKDIR)/data \
-		-v $(PWD)/notebooks:/$(WORKDIR)/notebooks \
-		-v $(PWD)/app:/$(WORKDIR)/app \
+		-v $(shell PWD)/data:/$(WORKDIR)/data \
+		-v $(shell PWD)/app:/$(WORKDIR)/app \
+		-v $(shell PWD)/notebooks:/$(WORKDIR)/notebooks \
 		$(IMAGE_NAME) jupyter notebook --ip=0.0.0.0 --allow-root .
