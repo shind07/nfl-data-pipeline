@@ -5,9 +5,13 @@ import os
 APP_NAME = "app"
 DATA_DIRECTORY = "data"
 CURRENT_YEAR = 2020
+
 GAMES_DIRECTORY = os.path.join(DATA_DIRECTORY, "games")
 PLAY_BY_PLAY_DIRECTORY = os.path.join(DATA_DIRECTORY, "play_by_play")
 ROSTER_DIRECTORY = os.path.join(DATA_DIRECTORY, "roster")
+
+DB_NAME = 'nfl.db'
+DB_PATH = os.path.join(DATA_DIRECTORY, DB_NAME)
 
 
 def configure_logging():
