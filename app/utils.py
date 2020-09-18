@@ -1,7 +1,38 @@
 import logging
 import os
 
+import numpy as np
 import pandas as pd
+
+from app.config import (
+    CURRENT_YEAR,
+    PLAY_BY_PLAY_DIRECTORY,
+    ROSTER_DIRECTORY,
+)
+
+
+def extract_play_by_play(year: int = CURRENT_YEAR) -> pd.DataFrame:
+    path = os.path.join(PLAY_BY_PLAY_DIRECTORY, f"{year}.csv")
+    df = pd.read_csv(path, low_memory=False)
+    df['year'] = year
+    return df
+
+
+def extract_roster() -> pd.DataFrame:
+    df_roster = pd.read_csv(os.path.join(ROSTER_DIRECTORY, 'roster.csv'), low_memory=False)
+    df_roster.columns = [col.replace(".", '_') for col in df_roster.columns]
+    return df_roster
+
+
+def get_window_columns(window: str) -> list:
+    if window not in ('year', 'week'):
+        raise ValueError(f"Cannot group by window: {window}")
+    return ['year'] if window == 'year' else ['year', 'week']
+
+
+def float_to_int(column):
+    """Turn all float columns into integers. Used with df.apply(float_to_int)"""
+    return np.int64(column) if column.dtype == np.float64 else column
 
 
 def init_directory(path: str) -> None:
