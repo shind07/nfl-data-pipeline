@@ -3,5 +3,6 @@ data/*
 .vscode
 .DS_store
 *__pycache__/
+*__pycache__/*
 *venv
 */.ipynb_checkpoints/*
