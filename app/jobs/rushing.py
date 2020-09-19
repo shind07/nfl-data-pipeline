@@ -86,11 +86,12 @@ def _transform_by_week(df_play_by_play: pd.DataFrame, df_roster: pd.DataFrame, y
     df_roster_year = df_roster_year.rename(columns={
         'pbp_name': 'rusher',
         'teamPlayers_position': 'pos',
-        'team_abbr': 'team'
+        'team_abbr': 'team',
+        'pbp_id': 'player_id'
     })
 
-    roster_columns = ['team', 'pos', 'pbp_id']
-    df_rushing_all = df_rushing_all.merge(df_roster_year[roster_columns], how='left', left_on='player_id', right_on='pbp_id')
+    roster_columns = ['team', 'pos', 'player_id']
+    df_rushing_all = df_rushing_all.merge(df_roster_year[roster_columns], how='left', on=['player_id'])
     assert(sum(df_rushing_all['pos'].isna()) == 0)
 
     df_rushing_all = df_rushing_all.rename(columns={
@@ -120,7 +121,7 @@ def _transform_by_week(df_play_by_play: pd.DataFrame, df_roster: pd.DataFrame, y
     df_rushing_all['total_fumbles_out_of_bounds'] = df_rushing_all['fumble_out_of_bounds_designed'] + \
         df_rushing_all['fumble_out_of_bounds_scrambles']
 
-    return df_rushing_all.drop("pbp_id", axis=1)
+    return df_rushing_all
 
 
 def _transform_by_week_team(df_weekly_player_stats: pd.DataFrame) -> pd.DataFrame:
@@ -148,14 +149,9 @@ def _add_team_stats(df_player_stats: pd.DataFrame, df_team_stats: pd.DataFrame) 
     """Add the team totals to the player stats"""
     logging.info('Enriching player stats with team stats...')
     df_team_stats = df_team_stats.rename(columns={
-        column: "team_" + column for column in df_team_stats if column not in ('team', 'week')
+        column: "team_" + column for column in df_team_stats if column not in ('team', 'week', 'year')
     })
-    df_player_stats = df_player_stats.merge(df_team_stats, how='left', on=['team', 'week'])
-
-    df_player_stats['%_team_carries'] = df_player_stats['rush'] / df_player_stats['team_rush']
-    df_player_stats['%_team_yards'] = df_player_stats['yards_gained_designed'] / df_player_stats['team_yards_gained_designed']
-
-    return df_player_stats
+    return df_player_stats.merge(df_team_stats, how='left', on=['team', 'week', 'year'])
 
 
 def _load(df: pd.DataFrame, path: str = OUTPUT_PATH) -> None:
@@ -172,7 +168,7 @@ def run() -> None:
 
     df_rushing_by_player_by_year = _transform_by_year(df_rushing_by_player_by_week, 'player')
     _load(df_rushing_by_player_by_week, OUTPUT_PATH.format(level='player', window='week'))
-    _load(df_rushing_by_player_by_year, OUTPUT_PATH.format(level='player', window='years'))
+    _load(df_rushing_by_player_by_year, OUTPUT_PATH.format(level='player', window='year'))
 
     df_rushing_by_team_by_week = _transform_by_week_team(df_rushing_by_player_by_week)
     df_rushing_by_team_by_year = _transform_by_year(df_rushing_by_team_by_week, 'team')
