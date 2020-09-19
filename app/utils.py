@@ -15,13 +15,13 @@ def extract_play_by_play(year: int = CURRENT_YEAR) -> pd.DataFrame:
     path = os.path.join(PLAY_BY_PLAY_DIRECTORY, f"{year}.csv")
     df = pd.read_csv(path, low_memory=False)
     df['year'] = year
-    return df
+    return df.rename(columns={"posteam":'team'})
 
 
 def extract_roster() -> pd.DataFrame:
     df_roster = pd.read_csv(os.path.join(ROSTER_DIRECTORY, 'roster.csv'), low_memory=False)
     df_roster.columns = [col.replace(".", '_') for col in df_roster.columns]
-    return df_roster
+    return df_roster.groupby(['pbp_id', 'team_season', 'team_abbr']).last().reset_index()
 
 
 def get_window_columns(window: str) -> list:
