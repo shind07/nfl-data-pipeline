@@ -18,6 +18,7 @@ run:
 .PHONY: shell
 shell:
 	@docker run \
+		--rm \
 		-it \
 		-v $(shell PWD)/data:/$(WORKDIR)/data \
 		-v $(shell PWD)/app:/$(WORKDIR)/app \
@@ -26,11 +27,12 @@ shell:
 
 .PHONY: pipeline
 pipeline:
-	@docker run -v $(shell PWD)/data:/$(WORKDIR)/data $(IMAGE_NAME) python3 -m app
+	@docker run --rm -v $(shell PWD)/data:/$(WORKDIR)/data $(IMAGE_NAME) python3 -m app
 
 .PHONY: notebook
 notebook:
 	@docker run \
+		--rm \
 		-p 8888:8888 \
 		-v $(shell PWD)/data:/$(WORKDIR)/data \
 		-v $(shell PWD)/app:/$(WORKDIR)/app \
