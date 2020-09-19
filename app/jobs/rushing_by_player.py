@@ -4,7 +4,6 @@ Upstream jobs:
 - roster
 """
 import logging
-import os
 
 import numpy as np
 import pandas as pd
@@ -12,7 +11,6 @@ import pandas as pd
 from app.config import (
     configure_logging,
     CURRENT_YEAR,
-    DERIVED_DATA_DIRECTORY
 )
 from app.utils import (
     get_window_columns,
@@ -22,7 +20,7 @@ from app.utils import (
 )
 from app.transforms import rushing
 
-OUTPUT_PATH = os.path.join(DERIVED_DATA_DIRECTORY, 'rushing_by_player.csv')
+OUTPUT_PATH = 'data/derived/rushing_by_{level}_by_{window}.csv'
 RUSHING_COLUMNS_TO_KEEP = ['year', 'player_id', 'player', 'rush', 'yards_gained_designed',
                            'rush_touchdown_designed', 'fumble_designed', 'fumble_lost_designed',
                            'fumble_out_of_bounds_designed', 'pass',
@@ -36,9 +34,14 @@ def _extract() -> pd.DataFrame:
     return extract_play_by_play(), extract_roster()
 
 
-def _transform(df_play_by_play: pd.DataFrame, df_roster: pd.DataFrame, window: str, year: int = CURRENT_YEAR) -> pd.DataFrame:
+def _transform_by_week(df_play_by_play: pd.DataFrame, df_roster: pd.DataFrame, year: int = CURRENT_YEAR) -> pd.DataFrame:
+    """
+    Get all the weekly stats for each player.
+    The weekly stats can then be rolled up to team stats and/or yearly stats.
+    """
     logging.info(f"Grabbing rushing play by play data...")
     df_rushing_plays = rushing.get_rushing_plays(df_play_by_play)
+    window = 'week'
     window_columns = get_window_columns(window)
 
     logging.info("Loading designed, scramble, and kneel rushing data...")
@@ -117,27 +120,64 @@ def _transform(df_play_by_play: pd.DataFrame, df_roster: pd.DataFrame, window: s
     df_rushing_all['total_fumbles_out_of_bounds'] = df_rushing_all['fumble_out_of_bounds_designed'] + \
         df_rushing_all['fumble_out_of_bounds_scrambles']
 
-    return df_rushing_all
+    return df_rushing_all.drop("pbp_id", axis=1)
 
 
-def _load(df: pd.DataFrame, window: str, path: str = OUTPUT_PATH) -> None:
-    path = path.replace(".csv", f"_by_{window}.csv")
+def _transform_by_week_team(df_weekly_player_stats: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate player stats to the team level."""
+    logging.info("Aggregating weekly player stats to the team level...")
+    grouping_columns = ['year', 'team', 'week']
+    return df_weekly_player_stats.groupby(grouping_columns, as_index=False).sum()
+
+
+def _transform_by_year(df_weekly_stats: pd.DataFrame, level: str) -> pd.DataFrame:
+    """Aggregate weekly stats for the year."""
+    logging.info(f"Aggregating weekly {level} stats by the year...")
+    if level not in ('player', 'team'):
+        raise ValueError(f"Given level: {level} in one of player or team.")
+
+    grouping_columns = {
+        'player': ['year', 'team', 'pos', 'player_id', 'player'],
+        'team': ['year', 'team'],
+    }
+    df_weekly_stats['games'] = 1
+    return df_weekly_stats.groupby(grouping_columns[level], as_index=False).sum()
+
+
+def _add_team_stats(df_player_stats: pd.DataFrame, df_team_stats: pd.DataFrame) -> pd.DataFrame:
+    """Add the team totals to the player stats"""
+    logging.info('Enriching player stats with team stats...')
+    df_team_stats = df_team_stats.rename(columns={
+        column: "team_" + column for column in df_team_stats if column not in ('team', 'week')
+    })
+    df_player_stats = df_player_stats.merge(df_team_stats, how='left', on=['team', 'week'])
+
+    df_player_stats['%_team_carries'] = df_player_stats['rush'] / df_player_stats['team_rush']
+    df_player_stats['%_team_yards'] = df_player_stats['yards_gained_designed'] / df_player_stats['team_yards_gained_designed']
+
+    return df_player_stats
+
+
+def _load(df: pd.DataFrame, path: str = OUTPUT_PATH) -> None:
     logging.info(f"Writing {len(df)} rows to {path}...")
     df.to_csv(path, index=False)
 
 
-def _run(season: int, window: str) -> None:
+def run() -> None:
     df_play_by_play, df_roster = _extract()
-    df_rushing_stats = _transform(df_play_by_play, df_roster, window)
-    _load(df_rushing_stats, window)
 
+    df_rushing_by_player_by_week = _transform_by_week(df_play_by_play, df_roster)
+    df_rushing_by_team_by_week = _transform_by_week_team(df_rushing_by_player_by_week)
+    df_rushing_by_player_by_week = _add_team_stats(df_rushing_by_player_by_week, df_rushing_by_team_by_week)
 
-def run(season: int = CURRENT_YEAR):
-    logging.info("Grabbing player rushing stats by year...")
-    _run(season, "year")
+    df_rushing_by_player_by_year = _transform_by_year(df_rushing_by_player_by_week, 'player')
+    _load(df_rushing_by_player_by_week, OUTPUT_PATH.format(level='player', window='week'))
+    _load(df_rushing_by_player_by_year, OUTPUT_PATH.format(level='player', window='years'))
 
-    logging.info("Grabbing player rushing stats by week...")
-    _run(season, "week")
+    df_rushing_by_team_by_week = _transform_by_week_team(df_rushing_by_player_by_week)
+    df_rushing_by_team_by_year = _transform_by_year(df_rushing_by_team_by_week, 'team')
+    _load(df_rushing_by_team_by_week, OUTPUT_PATH.format(level='team', window='week'))
+    _load(df_rushing_by_team_by_year, OUTPUT_PATH.format(level='team', window='year'))
 
 
 if __name__ == "__main__":
